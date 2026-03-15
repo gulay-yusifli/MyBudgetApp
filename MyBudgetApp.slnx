@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="MyBudgetApp.Core/MyBudgetApp.Core.csproj" />
+  <Project Path="MyBudgetApp.Data/MyBudgetApp.Data.csproj" />
+  <Project Path="MyBudgetApp.Tests/MyBudgetApp.Tests.csproj" />
+  <Project Path="MyBudgetApp.Web/MyBudgetApp.Web.csproj" />
+</Solution>
