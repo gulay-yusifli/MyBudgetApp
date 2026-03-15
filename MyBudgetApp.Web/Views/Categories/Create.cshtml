@@ -1,0 +1,47 @@
+@model MyBudgetApp.Core.Models.Category
+@{
+    ViewData["Title"] = "Add Category";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Add Category</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label fw-semibold">Name</label>
+                        <input asp-for="Name" class="form-control" placeholder="e.g. Food & Dining" />
+                        <span asp-validation-for="Name" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Color" class="form-label fw-semibold">Color</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input asp-for="Color" class="form-control form-control-color" type="color" style="width:60px;height:38px;" />
+                            <span class="text-muted small">Pick a color to identify this category</span>
+                        </div>
+                        <span asp-validation-for="Color" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i> Save Category
+                        </button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}
