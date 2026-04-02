@@ -1,93 +1,62 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using MyBudgetApp.Core.DTOs;
 using MyBudgetApp.Core.Interfaces;
 using MyBudgetApp.Core.Models;
 
 namespace MyBudgetApp.Web.Controllers;
 
-public class TransactionsController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class TransactionsController : ControllerBase
 {
     private readonly ITransactionService _transactionService;
-    private readonly ICategoryService _categoryService;
 
-    public TransactionsController(ITransactionService transactionService, ICategoryService categoryService)
+    public TransactionsController(ITransactionService transactionService)
     {
         _transactionService = transactionService;
-        _categoryService = categoryService;
     }
 
-    public async Task<IActionResult> Index(TransactionFilterDto? filter)
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] TransactionFilterDto? filter)
     {
         filter ??= new TransactionFilterDto();
         var transactions = await _transactionService.GetFilteredAsync(filter);
-        var categories = await _categoryService.GetAllAsync();
-
-        ViewBag.Categories = new SelectList(categories, "Id", "Name", filter.CategoryId);
-        ViewBag.Filter = filter;
-        ViewBag.TotalIncome = await _transactionService.GetTotalIncomeAsync(filter.StartDate, filter.EndDate);
-        ViewBag.TotalExpenses = await _transactionService.GetTotalExpensesAsync(filter.StartDate, filter.EndDate);
-        ViewBag.Balance = await _transactionService.GetBalanceAsync(filter.StartDate, filter.EndDate);
-
-        return View(transactions);
+        return Ok(transactions);
     }
 
-    public async Task<IActionResult> Create()
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        await PopulateCategoriesAsync();
-        return View(new Transaction { Date = DateTime.Today });
+        var transaction = await _transactionService.GetByIdAsync(id);
+        if (transaction == null)
+            return NotFound();
+        return Ok(transaction);
     }
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Transaction transaction)
+    public async Task<IActionResult> Create([FromBody] Transaction transaction)
     {
-        if (!ModelState.IsValid)
-        {
-            await PopulateCategoriesAsync(transaction.CategoryId);
-            return View(transaction);
-        }
-
         try
         {
-            await _transactionService.CreateAsync(transaction);
-            TempData["Success"] = "Transaction added successfully.";
-            return RedirectToAction(nameof(Index));
+            var created = await _transactionService.CreateAsync(transaction);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError("", ex.Message);
-            await PopulateCategoriesAsync(transaction.CategoryId);
-            return View(transaction);
+            return BadRequest(ex.Message);
         }
     }
 
-    public async Task<IActionResult> Edit(int id)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] Transaction transaction)
     {
-        var transaction = await _transactionService.GetByIdAsync(id);
-        if (transaction == null) return NotFound();
-
-        await PopulateCategoriesAsync(transaction.CategoryId);
-        return View(transaction);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Transaction transaction)
-    {
-        if (id != transaction.Id) return BadRequest();
-
-        if (!ModelState.IsValid)
-        {
-            await PopulateCategoriesAsync(transaction.CategoryId);
-            return View(transaction);
-        }
+        if (id != transaction.Id)
+            return BadRequest();
 
         try
         {
             await _transactionService.UpdateAsync(transaction);
-            TempData["Success"] = "Transaction updated successfully.";
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
         catch (KeyNotFoundException)
         {
@@ -95,38 +64,25 @@ public class TransactionsController : Controller
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError("", ex.Message);
-            await PopulateCategoriesAsync(transaction.CategoryId);
-            return View(transaction);
+            return BadRequest(ex.Message);
         }
     }
 
+    [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var transaction = await _transactionService.GetByIdAsync(id);
-        if (transaction == null) return NotFound();
-        return View(transaction);
+        var deleted = await _transactionService.DeleteAsync(id);
+        if (!deleted)
+            return NotFound();
+        return NoContent();
     }
 
-    [HttpPost, ActionName("Delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int id)
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
     {
-        await _transactionService.DeleteAsync(id);
-        TempData["Success"] = "Transaction deleted successfully.";
-        return RedirectToAction(nameof(Index));
-    }
-
-    public async Task<IActionResult> Details(int id)
-    {
-        var transaction = await _transactionService.GetByIdAsync(id);
-        if (transaction == null) return NotFound();
-        return View(transaction);
-    }
-
-    private async Task PopulateCategoriesAsync(int? selectedId = null)
-    {
-        var categories = await _categoryService.GetAllAsync();
-        ViewBag.CategoryId = new SelectList(categories, "Id", "Name", selectedId);
+        var income = await _transactionService.GetTotalIncomeAsync(startDate, endDate);
+        var expenses = await _transactionService.GetTotalExpensesAsync(startDate, endDate);
+        var balance = await _transactionService.GetBalanceAsync(startDate, endDate);
+        return Ok(new { income, expenses, balance });
     }
 }
