@@ -4,7 +4,9 @@ using MyBudgetApp.Core.Models;
 
 namespace MyBudgetApp.Web.Controllers;
 
-public class CategoriesController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
 
@@ -13,52 +15,46 @@ public class CategoriesController : Controller
         _categoryService = categoryService;
     }
 
-    public async Task<IActionResult> Index()
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
         var categories = await _categoryService.GetAllAsync();
-        return View(categories);
+        return Ok(categories);
     }
 
-    public IActionResult Create() => View(new Category { Color = "#6c757d" });
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var category = await _categoryService.GetByIdAsync(id);
+        if (category == null)
+            return NotFound();
+        return Ok(category);
+    }
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Category category)
+    public async Task<IActionResult> Create([FromBody] Category category)
     {
-        if (!ModelState.IsValid) return View(category);
-
         try
         {
-            await _categoryService.CreateAsync(category);
-            TempData["Success"] = "Category created successfully.";
-            return RedirectToAction(nameof(Index));
+            var created = await _categoryService.CreateAsync(category);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError("", ex.Message);
-            return View(category);
+            return BadRequest(ex.Message);
         }
     }
 
-    public async Task<IActionResult> Edit(int id)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] Category category)
     {
-        var category = await _categoryService.GetByIdAsync(id);
-        if (category == null) return NotFound();
-        return View(category);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Category category)
-    {
-        if (id != category.Id) return BadRequest();
-        if (!ModelState.IsValid) return View(category);
+        if (id != category.Id)
+            return BadRequest();
 
         try
         {
             await _categoryService.UpdateAsync(category);
-            TempData["Success"] = "Category updated successfully.";
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
         catch (KeyNotFoundException)
         {
@@ -66,31 +62,23 @@ public class CategoriesController : Controller
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError("", ex.Message);
-            return View(category);
+            return BadRequest(ex.Message);
         }
     }
 
+    [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
-    {
-        var category = await _categoryService.GetByIdAsync(id);
-        if (category == null) return NotFound();
-        return View(category);
-    }
-
-    [HttpPost, ActionName("Delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int id)
     {
         try
         {
-            await _categoryService.DeleteAsync(id);
-            TempData["Success"] = "Category deleted successfully.";
+            var deleted = await _categoryService.DeleteAsync(id);
+            if (!deleted)
+                return NotFound();
+            return NoContent();
         }
         catch (InvalidOperationException ex)
         {
-            TempData["Error"] = ex.Message;
+            return Conflict(ex.Message);
         }
-        return RedirectToAction(nameof(Index));
     }
 }
